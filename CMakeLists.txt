@@ -13,6 +13,7 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_lifecycle_manager REQUIRED)
 include_directories(
@@ -34,6 +35,7 @@ set(dependencies
   rclcpp_action
   nav2_msgs
   nav2_lifecycle_manager
+  sensor_msgs
 )
 
 

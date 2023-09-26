@@ -1,6 +1,7 @@
 #include "temp_commander.hpp"
 #include "temp_navigator.hpp"
 #define degtorad 0.0174533
+#define Deg2rad 0.0174533
 
 using namespace std::chrono_literals;
 
@@ -11,6 +12,7 @@ temp_commander::temp_commander(const rclcpp::NodeOptions & options)
     auto custom_qos = rclcpp::SensorDataQoS(rclcpp::KeepLast(1));   
     auto subscriber_options = rclcpp::SubscriptionOptions();  
     RCLCPP_INFO(get_logger(), "temp_commander start");
+    sub_scan = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan",custom_qos, std::bind(&temp_commander::laser_callback,this,std::placeholders::_1),subscriber_options);
     amcl_pose_sub = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",custom_qos, std::bind(&temp_commander::amcl_pose_callback,this,std::placeholders::_1),subscriber_options);
     initial_pose_pub = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("initialpose", rclcpp::QoS(10));
     timer_ = this->create_wall_timer(100ms,std::bind(&temp_commander::timerCallback,this));
@@ -19,6 +21,7 @@ temp_commander::temp_commander(const rclcpp::NodeOptions & options)
     // rclcpp::Client<nav2_msgs::action::NavigateToPose>::SharedPtr pp =
     // nodes->create_client<nav2_msgs::action::NavigateToPose>("add_two_ints");
     client_node_= rclcpp::Node::make_shared("yes");
+    pub_cmd_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel",rclcpp::QoS(10));
     client_ptr_ =rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(client_node_, "navigate_to_pose");
     // server_timeout_ = 100;
         process = gosome;
@@ -29,6 +32,35 @@ temp_commander::temp_commander(const rclcpp::NodeOptions & options)
 
 
 using namespace std::placeholders;
+
+
+
+void temp_commander::laser_callback(const sensor_msgs::msg::LaserScan::ConstPtr& scan_in){
+    recent_scan =*scan_in;
+
+
+}
+
+
+
+geometry_msgs::msg::Twist temp_commander::make_cmd(sensor_msgs::msg::LaserScan in)
+{
+      geometry_msgs::msg::Twist cmd_vel;
+        bool go=true;
+    for(unsigned int i=0; i< in.ranges.size(); i++)
+    {
+    if( (i*in.angle_increment > 45 * Deg2rad && i*in.angle_increment < 130 * Deg2rad )  ){continue;}
+    if(in.ranges[i]<0.4){go =false;} 
+    }
+
+    if(go){
+        cmd_vel.linear.y = 0.1;
+    }
+    if(!go){
+    }
+
+      return cmd_vel;
+}
 
 void temp_commander::amcl_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped& in){
     
@@ -86,58 +118,61 @@ void temp_commander::timerCallback(){
     /////// decide process algorithm /////////////////////
     //////////////////////////////////////////////////////
 
-    switch(process){
+    geometry_msgs::msg::Twist cmd ;
+    cmd =temp_commander::make_cmd(recent_scan);
+    pub_cmd_vel->publish(cmd);
+    // switch(process){
 
-        case 0 :
-        {   
-            if(!initialpose_callback_flag){
-                temp_commander::setInitialPose_(3,4,0);
-            }
-            else{initialpose_callback_flag=true; process= neutral;}
-            break;
-        }
+    //     case 0 :
+    //     {   
+    //         if(!initialpose_callback_flag){
+    //             temp_commander::setInitialPose_(3,4,0);
+    //         }
+    //         else{initialpose_callback_flag=true; process= neutral;}
+    //         break;
+    //     }
 
-        case 1:
+    //     case 1:
         
-        {
-            RCLCPP_INFO(get_logger(),"go home5");
+    //     {
+    //         RCLCPP_INFO(get_logger(),"go home5");
             
-            if(!client_res){
-                 RCLCPP_INFO(get_logger(),"go home");
-                temp_commander::goTopose(3,4 ,40);
-            }
-            else{
-                if(clinet_result!=1){RCLCPP_INFO(get_logger(),"go home");}
-            }
+    //         if(!client_res){
+    //              RCLCPP_INFO(get_logger(),"go home");
+    //             temp_commander::goTopose(3,4 ,40);
+    //         }
+    //         else{
+    //             if(clinet_result!=1){RCLCPP_INFO(get_logger(),"go home");}
+    //         }
 
-            break;
-        }
+    //         break;
+    //     }
 
-        case 2:{
-                isTaskComplete();
-            if(!client_res){
-             temp_commander::goTopose(1.74,-0.65 ,40);
-            }
+    //     case 2:{
+    //             isTaskComplete();
+    //         if(!client_res){
+    //          temp_commander::goTopose(1.74,-0.65 ,40);
+    //         }
 
-            else { }
-            break;
-        }
+    //         else { }
+    //         break;
+    //     }
 
-        case neutral:{
-            RCLCPP_INFO(get_logger(),"now");
-            temp_commander::goTopose(1.74,-0.65 ,40);
+    //     case neutral:{
+    //         RCLCPP_INFO(get_logger(),"now");
+    //         temp_commander::goTopose(1.74,-0.65 ,40);
 
-            break ; 
-        }
-        case gocharge: {
-
-
-            break;
-        }
+    //         break ; 
+    //     }
+    //     case gocharge: {
 
 
+    //         break;
+    //     }
 
-    }
+
+
+    // }
 
 
 

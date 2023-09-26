@@ -6,6 +6,9 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include <chrono>
+#include "sensor_msgs/msg/laser_scan.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include <nav_msgs/msg/odometry.hpp>
 
 #define set_pose 0
 #define gohome 1
@@ -39,7 +42,8 @@ class temp_commander : public rclcpp::Node{
 
 
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr client_ptr_;
-
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub_scan;
     std::shared_ptr<rclcpp::Node> nodes;
     rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr pp;
     std::chrono::milliseconds server_timeout_ ;
@@ -52,9 +56,11 @@ class temp_commander : public rclcpp::Node{
     void goTopose(float x, float y, float deg);
     void goToHome();
     void isTaskComplete();
+    void laser_callback(const sensor_msgs::msg::LaserScan::ConstPtr &);
+    geometry_msgs::msg::Twist make_cmd(sensor_msgs::msg::LaserScan);
     
     bool one_time=false;
-
+    sensor_msgs::msg::LaserScan recent_scan;
     void goal_response_callback(const NavigationGoalHandle::SharedPtr &);
     void feedback_callback(NavigationGoalHandle::SharedPtr,const std::shared_ptr<const Nav2Pose::Feedback>);
     void result_callback(const NavigationGoalHandle::WrappedResult & result);
